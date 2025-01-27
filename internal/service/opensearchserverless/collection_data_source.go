@@ -5,9 +5,7 @@ package opensearchserverless
 
 import (
 	"context"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awstypes "github.com/aws/aws-sdk-go-v2/service/opensearchserverless/types"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -23,6 +21,7 @@ import (
 )
 
 // @FrameworkDataSource("aws_opensearchserverless_collection", name="Collection")
+// @Tags(identifierAttribute="arn")
 func newDataSourceCollection(context.Context) (datasource.DataSourceWithConfigure, error) {
 	return &dataSourceCollection{}, nil
 }
@@ -46,7 +45,7 @@ func (d *dataSourceCollection) Schema(_ context.Context, _ datasource.SchemaRequ
 			"collection_endpoint": schema.StringAttribute{
 				Computed: true,
 			},
-			names.AttrCreatedDate: schema.StringAttribute{
+			names.AttrCreatedDate: schema.Int64Attribute{
 				Computed: true,
 			},
 			"dashboard_endpoint": schema.StringAttribute{
@@ -76,7 +75,7 @@ func (d *dataSourceCollection) Schema(_ context.Context, _ datasource.SchemaRequ
 			names.AttrKMSKeyARN: schema.StringAttribute{
 				Computed: true,
 			},
-			"last_modified_date": schema.StringAttribute{
+			"last_modified_date": schema.Int64Attribute{
 				Computed: true,
 			},
 			names.AttrName: schema.StringAttribute{
@@ -135,25 +134,6 @@ func (d *dataSourceCollection) Read(ctx context.Context, req datasource.ReadRequ
 		out = output
 	}
 
-	createdDate := time.UnixMilli(aws.ToInt64(out.CreatedDate))
-	data.CreatedDate = flex.StringValueToFramework(ctx, createdDate.Format(time.RFC3339))
-
-	lastModifiedDate := time.UnixMilli(aws.ToInt64(out.LastModifiedDate))
-	data.LastModifiedDate = flex.StringValueToFramework(ctx, lastModifiedDate.Format(time.RFC3339))
-
-	ignoreTagsConfig := d.Meta().IgnoreTagsConfig(ctx)
-	tags, err := listTags(ctx, conn, aws.ToString(out.Arn))
-	if err != nil {
-		resp.Diagnostics.AddError(
-			create.ProblemStandardMessage(names.OpenSearchServerless, create.ErrActionReading, DSNameCollection, data.ID.String(), err),
-			err.Error(),
-		)
-		return
-	}
-
-	tags = tags.IgnoreConfig(ignoreTagsConfig)
-	data.Tags = tftags.FlattenStringValueMap(ctx, tags.Map())
-
 	resp.Diagnostics.Append(flex.Flatten(ctx, out, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -165,14 +145,14 @@ func (d *dataSourceCollection) Read(ctx context.Context, req datasource.ReadRequ
 type dataSourceCollectionData struct {
 	ARN                types.String `tfsdk:"arn"`
 	CollectionEndpoint types.String `tfsdk:"collection_endpoint"`
-	CreatedDate        types.String `tfsdk:"created_date"`
+	CreatedDate        types.Int64  `tfsdk:"created_date"`
 	FailureMessage     types.String `tfsdk:"failure_message"`
 	FailureCode        types.String `tfsdk:"failure_code"`
 	DashboardEndpoint  types.String `tfsdk:"dashboard_endpoint"`
 	Description        types.String `tfsdk:"description"`
 	ID                 types.String `tfsdk:"id"`
 	KmsKeyARN          types.String `tfsdk:"kms_key_arn"`
-	LastModifiedDate   types.String `tfsdk:"last_modified_date"`
+	LastModifiedDate   types.Int64  `tfsdk:"last_modified_date"`
 	Name               types.String `tfsdk:"name"`
 	StandbyReplicas    types.String `tfsdk:"standby_replicas"`
 	Tags               tftags.Map   `tfsdk:"tags"`
